@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const connection = require('./db');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -7,7 +8,11 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(cors({
+    origin: 'https://chatrathfrontenddeployments.vercel.app',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(bodyParser.json());
 
 //LOGIN 
