@@ -8,15 +8,20 @@ const app = express();
 const PORT = 3001;
 
 app.use(bodyParser.json());
-app.use(cors({
-    origin: ['http://localhost:3000', 'https://chatrathassistant.vercel.app'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-    preflightContinue: true
-}));
 
-app.options('*', cors());
+// Middleware CORS personalizzato
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://chatrathassistant.vercel.app');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    
+    // Gestione della richiesta OPTIONS
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    
+    next();
+});
 
 //LOGIN 
 app.post('/api/login', (req, res) => {
