@@ -1,21 +1,29 @@
 const mysql = require('mysql2');
 require('dotenv').config();
 
-const connection = mysql.createConnection({
-    host: process.env.DB_HOST, // o l'indirizzo del tuo server MySQL
-    user: process.env.DB_USER, // il tuo nome utente MySQL
-    password: process.env.DB_PASSWORD, // la tua password MySQL
-    database: process.env.DB_DATABASE, // il nome del tuo database
-    port: process.env.DB_PORT,
-    connectTimeout: 10000 // Timeout di 10 secondi
+// Crea una connessione in pool
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
+    port: process.env.DB_PORT || 3306,  // Assicurati di includere una porta di fallback
+    waitForConnections: true,          // Attende connessioni se la connessione è occupata
+    connectionLimit: 10,               // Limita il numero di connessioni simultanee
+    queueLimit: 0                      // Senza limiti nella coda
 });
 
-connection.connect((err) => {
-    if (err) {
-        console.error('Errore di connessione: ' + err.stack);
-        return;
-    }
-    console.log('Connesso come id ' + connection.threadId);
-});
+// Esegui una query usando il pool
+const query = (sql, params) => {
+    return new Promise((resolve, reject) => {
+        pool.execute(sql, params, (err, results) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(results);
+            }
+        });
+    });
+};
 
-module.exports = connection; 
+module.exports = { query };
