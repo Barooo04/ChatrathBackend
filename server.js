@@ -16,6 +16,8 @@ app.use(cors({
     preflightContinue: true
 }));
 
+app.options('*', cors());
+
 //LOGIN 
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
