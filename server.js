@@ -9,17 +9,20 @@ const PORT = 3001;
 
 app.use(bodyParser.json());
 
-// Configurazione CORS più permissiva per debug
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+// Configurazione CORS aggiornata
+app.options('*', (req, res) => {
+    res.header('Access-Control-Allow-Origin', 'https://chatrathassistant.vercel.app');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
     res.header('Access-Control-Allow-Credentials', 'true');
-    
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-    
+    res.status(200).send();
+});
+
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://chatrathassistant.vercel.app');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+    res.header('Access-Control-Allow-Credentials', 'true');
     next();
 });
 
