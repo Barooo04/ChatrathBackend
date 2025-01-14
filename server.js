@@ -11,9 +11,9 @@ app.use(bodyParser.json());
 
 // CORS Configuration
 const corsOptions = {
-    origin: 'https://chatrathassistant.vercel.app',  // Permetti solo il tuo dominio specifico
+    origin: '*', 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
@@ -24,10 +24,7 @@ app.options('*', cors(corsOptions));
 
 // Middleware aggiuntivo per i headers CORS
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
+   
     if (req.method === 'OPTIONS') {
         return res.status(204).end();
     }
