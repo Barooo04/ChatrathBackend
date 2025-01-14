@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3001;
 
 
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://chatrathassistant.vercel.app'],
+    origin: ['http://localhost:3000', 'https://chatrathassistant.vercel.app', 'https://chatrathbackenddeployments.vercel.app'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true  // Importante per le richieste con credentials: 'include'
