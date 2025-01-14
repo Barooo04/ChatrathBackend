@@ -9,17 +9,18 @@ const PORT = 3001;
 
 app.use(bodyParser.json());
 
-// Configurazione CORS più permissiva
+// CORS Configuration
 const corsOptions = {
-    origin: '*',  // Permettiamo temporaneamente tutte le origini
+    origin: 'https://chatrathassistant.vercel.app',  // Permetti solo il tuo dominio specifico
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
     preflightContinue: false,
-    optionsSuccessStatus: 204
+    optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Middleware aggiuntivo per i headers CORS
 app.use((req, res, next) => {
