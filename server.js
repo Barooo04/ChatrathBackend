@@ -9,15 +9,19 @@ const PORT = 3001;
 
 app.use(bodyParser.json());
 
-// Semplifica la configurazione CORS
-const corsOptions = {
-    origin: ['https://chatrathassistant.vercel.app', 'http://localhost:3000'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-};
-
-app.use(cors(corsOptions));
+// Configurazione CORS più permissiva per debug
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    
+    next();
+});
 
 //LOGIN 
 app.post('/api/login', (req, res) => {
