@@ -3,13 +3,14 @@ const connection = require('./db');
 const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
+const fetch = require('node-fetch');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(bodyParser.json());
 
-// Semplifica la configurazione CORS
+// Configurazione CORS
 const corsOptions = {
     origin: process.env.NODE_ENV === 'production' 
         ? ['https://chatrathassistant.vercel.app']
@@ -21,7 +22,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-//LOGIN 
+// LOGIN 
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
 
@@ -30,15 +31,15 @@ app.post('/api/login', (req, res) => {
             return res.status(500).json({ message: 'Errore interno del server' });
         }
         if (results.length > 0) {
-            const user = results[0]; // Prendi il primo risultato
-            res.json({ message: 'Login effettuato con successo!', user: { id: user.id, name: user.name } }); // Includi ID e nome
+            const user = results[0];
+            res.json({ message: 'Login effettuato con successo!', user: { id: user.id, name: user.name } });
         } else {
             res.status(401).json({ message: 'Email o password errati' });
         }
     });
 });
 
-//ASSISTANTS
+// ASSISTANTS
 app.post('/api/assistants', (req, res) => {
     const userId = req.body.userId; 
 
@@ -57,8 +58,8 @@ app.post('/api/assistants', (req, res) => {
     });
 });
 
-//CHAT
-app.post('/api/chat', (req, res) => {
+// CHAT
+app.post('/api/chat', async (req, res) => {
     const { assistantToken, message, userId } = req.body;
 
     connection.query(
@@ -75,45 +76,74 @@ app.post('/api/chat', (req, res) => {
                 return res.status(404).json({ message: 'Assistente non trovato' });
             }
 
+            // Imposta l'URL di destinazione reale in base al token
             const apiUrl =
                 assistantToken === 'asst_QCWfQJx5g25MNoNhHK1xN8oo'
                 ? `https://fastapi-test-dxov.onrender.com/chat/asst_QCWfQJx5g25MNoNhHK1xN8oo`
                 : `https://fastapi-test-dxov.onrender.com/chat/${assistantToken}`;
-            
+
+            // Configura i dettagli del proxy
+            const proxyUrl = 'https://cors-proxy3.p.rapidapi.com/api';
+            const encodedParams = new URLSearchParams();
+            encodedParams.set('my-url', apiUrl);
+
             try {
-                const payload = {
+                // Invia la richiesta al proxy con l'URL di destinazione
+                const proxyResponse = await fetch(proxyUrl, {
+                    method: 'POST',
+                    headers: { 
+                        'x-rapidapi-key': 'd8ff6b5043msh0415f942900c2afp138513jsnfcc26faac507',
+                        'x-rapidapi-host': 'cors-proxy3.p.rapidapi.com',
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: encodedParams.toString()
+                });
+
+                if (!proxyResponse.ok) {
+                    const errorText = await proxyResponse.text();
+                    console.log('Errore dalla API tramite proxy:', errorText);
+                    return res.status(proxyResponse.status).json({ error: 'Errore tramite proxy' });
+                }
+
+                // Invia la richiesta effettiva a FastAPI tramite il proxy
+                // Poiché il proxy supporta solo 'my-url', dobbiamo inviare il payload direttamente dopo aver impostato l'URL
+                // Utilizziamo una seconda richiesta per inviare il payload
+
+                // Crea una richiesta con il payload
+                const chatPayload = {
                     user_id: userId.toString(),
                     prompt: message,
                     assistant_id: assistantToken
                 };
 
-
-                const response = await fetch(apiUrl, {
+                // Effettua una richiesta POST direttamente a FastAPI
+                // Nota: Se il proxy non supporta l'inoltro del body, questa parte potrebbe non funzionare come previsto
+                const finalResponse = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(chatPayload)
                 });
-            
-                if (!response.ok) {
-                    const errorData = await response.json();
+
+                if (!finalResponse.ok) {
+                    const errorData = await finalResponse.json();
                     console.log('Errore dalla API:', errorData);
-                    return res.status(response.status).json({ error: errorData.detail || 'Errore generico' });
+                    return res.status(finalResponse.status).json({ error: errorData.detail || 'Errore generico' });
                 }
 
-                const data = await response.json();
+                const data = await finalResponse.json();
                 return res.json({ response: data.response });
             } catch (error) {
-                console.error('Errore durante la comunicazione con FastAPI:', error);
+                console.error('Errore durante la comunicazione con il proxy e FastAPI:', error);
                 return res.status(500).json({ error: 'Errore di connessione al server dell\'assistente' });
             }
         }
     );
 });
 
-//ASSISTANT TOKEN
+// ASSISTANT TOKEN
 app.get('/api/assistant/:token', (req, res) => {
     const { token } = req.params;
     
@@ -136,7 +166,7 @@ app.get('/api/assistant/:token', (req, res) => {
     });
 });
 
-//METADATA
+// METADATA
 app.post('/api/metadata', (req, res) => {
     const { userId, assistantId, assistantName } = req.body;
     const now = new Date();
@@ -162,7 +192,7 @@ app.post('/api/metadata', (req, res) => {
     });
 });
 
-//FEEDBACK
+// FEEDBACK
 app.post('/api/feedback', (req, res) => {
     const { assistantId, userId, rating, comment, threadId } = req.body;
 
@@ -223,7 +253,7 @@ app.get('/api/test', (req, res) => {
     });
 });
 
-// Aggiungi gestione degli errori globale
+// Gestione degli errori globale
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Si è verificato un errore interno del server' });
@@ -238,5 +268,3 @@ if (process.env.NODE_ENV !== 'production') {
         console.log(`Server in ascolto sulla porta ${PORT}`);
     });
 }
-
-
