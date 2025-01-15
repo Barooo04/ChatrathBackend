@@ -13,7 +13,7 @@ app.use(bodyParser.json());
 // Configurazione CORS
 const corsOptions = {
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://chatrathbackend.onrender.com']
+        ? ['https://chatrathassistant.vercel.app']
         : ['http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
