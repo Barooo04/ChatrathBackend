@@ -18,6 +18,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 //LOGIN 
 app.post('/api/login', (req, res) => {
