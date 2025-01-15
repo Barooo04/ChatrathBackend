@@ -214,6 +214,15 @@ app.post('/api/feedback', (req, res) => {
     );
 });
 
+// Endpoint di test
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        message: 'Il server funziona correttamente!',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
+
 // Aggiungi gestione degli errori globale
 app.use((err, req, res, next) => {
     console.error(err.stack);
