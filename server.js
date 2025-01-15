@@ -5,30 +5,21 @@ const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 app.use(bodyParser.json());
 
 // Semplifica la configurazione CORS
 const corsOptions = {
-    origin: ['https://chatrathassistant.vercel.app', 'http://localhost:3000'],
+    origin: process.env.NODE_ENV === 'production' 
+        ? ['https://chatrathassistant.vercel.app']
+        : ['http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-app.use((req, res, next) => {
-    if (req.method === 'OPTIONS') {
-      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-      res.header('Access-Control-Allow-Credentials', 'true');
-      return res.sendStatus(200);
-    }
-    next();
-  });
 
 //LOGIN 
 app.post('/api/login', (req, res) => {
@@ -65,10 +56,6 @@ app.post('/api/assistants', (req, res) => {
         res.json(results); 
     });
 });
-
-app.listen(PORT, () => {
-    console.log(`Server in ascolto sulla porta ${PORT}`);
-}); 
 
 //CHAT
 app.post('/api/chat', (req, res) => {
@@ -226,5 +213,21 @@ app.post('/api/feedback', (req, res) => {
         }
     );
 });
+
+// Aggiungi gestione degli errori globale
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ message: 'Si è verificato un errore interno del server' });
+});
+
+// Modifica l'export per Vercel
+module.exports = app;
+
+// Se non in produzione, avvia il server
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server in ascolto sulla porta ${PORT}`);
+    });
+}
 
 
