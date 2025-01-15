@@ -263,8 +263,6 @@ app.use((err, req, res, next) => {
 module.exports = app;
 
 // Se non in produzione, avvia il server
-if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
         console.log(`Server in ascolto sulla porta ${PORT}`);
     });
-}
