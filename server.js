@@ -3,9 +3,9 @@ const connection = require('./db');
 const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
-
 const app = express();
 const PORT = process.env.PORT || 3001;
+const bcrypt = require('bcryptjs');
 
 app.use(bodyParser.json());
 
@@ -25,16 +25,21 @@ app.use(cors(corsOptions));
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
 
-    connection.query('SELECT * FROM user WHERE email = ? AND password = ?', [email, password], (err, results) => {
+    connection.query('SELECT * FROM user WHERE email = ?', [email], (err, results) => {
         if (err) {
             return res.status(500).json({ message: 'Errore interno del server' });
         }
         if (results.length > 0) {
             const user = results[0];
-            res.json({ 
-                message: 'Login effettuato con successo!', 
-                user: { id: user.id, name: user.name, role: user.role } 
-            });
+            // Confronta la password inserita con l'hash salvato
+            if (bcrypt.compareSync(password, user.password)) {
+                res.json({ 
+                    message: 'Login effettuato con successo!', 
+                    user: { id: user.id, name: user.name, role: user.role } 
+                });
+            } else {
+                res.status(401).json({ message: 'Email o password errati' });
+            }
         } else {
             res.status(401).json({ message: 'Email o password errati' });
         }
@@ -305,22 +310,24 @@ app.post('/api/change-password', (req, res) => {
 
     // Verifica la password attuale
     connection.query(
-        'SELECT * FROM user WHERE id = ? AND password = ?',
-        [userId, currentPassword],
+        'SELECT * FROM user WHERE id = ?', [userId],
         (err, results) => {
             if (err) {
                 console.error('Errore query:', err);
                 return res.status(500).json({ message: 'Errore interno del server' });
             }
 
-            if (results.length === 0) {
+            if (results.length === 0 || !bcrypt.compareSync(currentPassword, results[0].password)) {
                 return res.status(401).json({ message: 'Password attuale errata' });
             }
+
+            // Hash della nuova password
+            const hashedPassword = bcrypt.hashSync(newPassword, 10);
 
             // Aggiorna la password
             connection.query(
                 'UPDATE user SET password = ? WHERE id = ?',
-                [newPassword, userId],
+                [hashedPassword, userId],
                 (err, updateResults) => {
                     if (err) {
                         console.error('Errore durante l\'aggiornamento della password:', err);
@@ -354,9 +361,12 @@ app.post('/api/add-client', (req, res) => {
             return res.status(409).json({ message: 'Email già esistente' });
         }
 
+        // Hash della password
+        const hashedPassword = bcrypt.hashSync(password, 10);
+
         // Inserisci il nuovo cliente
         const query = 'INSERT INTO user (name, email, password, role) VALUES (?, ?, ?, ?)';
-        connection.query(query, [name, email, password, 'client'], (err, results) => {
+        connection.query(query, [name, email, hashedPassword, 'client'], (err, results) => {
             if (err) {
                 console.error('Errore durante l\'inserimento del cliente:', err);
                 return res.status(500).json({ message: 'Errore durante l\'inserimento del cliente' });
