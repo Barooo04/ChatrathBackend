@@ -3,7 +3,6 @@ const connection = require('./db');
 const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
-const fetch = require('node-fetch');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,7 +31,10 @@ app.post('/api/login', (req, res) => {
         }
         if (results.length > 0) {
             const user = results[0];
-            res.json({ message: 'Login effettuato con successo!', user: { id: user.id, name: user.name } });
+            res.json({ 
+                message: 'Login effettuato con successo!', 
+                user: { id: user.id, name: user.name, role: user.role } 
+            });
         } else {
             res.status(401).json({ message: 'Email o password errati' });
         }
@@ -59,8 +61,8 @@ app.post('/api/assistants', (req, res) => {
 });
 
 // CHAT
-app.post('/api/chat', async (req, res) => {
-    const { assistantToken, message, userId } = req.body;
+app.post('/api/chat', (req, res) => {
+    const { assistantToken, message, userId, threadId } = req.body;
 
     connection.query(
         'SELECT * FROM assistants WHERE token = ?',
@@ -81,43 +83,18 @@ app.post('/api/chat', async (req, res) => {
                 assistantToken === 'asst_QCWfQJx5g25MNoNhHK1xN8oo'
                 ? `https://fastapi-test-dxov.onrender.com/chat/asst_QCWfQJx5g25MNoNhHK1xN8oo`
                 : `https://fastapi-test-dxov.onrender.com/chat/${assistantToken}`;
-
-            // Configura i dettagli del proxy
-            const proxyUrl = 'https://cors-proxy3.p.rapidapi.com/api';
-            const encodedParams = new URLSearchParams();
-            encodedParams.set('my-url', apiUrl);
+            console.log('API URL costruito:', apiUrl);
 
             try {
-                // Invia la richiesta al proxy con l'URL di destinazione
-                const proxyResponse = await fetch(proxyUrl, {
-                    method: 'POST',
-                    headers: { 
-                        'x-rapidapi-key': 'd8ff6b5043msh0415f942900c2afp138513jsnfcc26faac507',
-                        'x-rapidapi-host': 'cors-proxy3.p.rapidapi.com',
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: encodedParams.toString()
-                });
-
-                if (!proxyResponse.ok) {
-                    const errorText = await proxyResponse.text();
-                    console.log('Errore dalla API tramite proxy:', errorText);
-                    return res.status(proxyResponse.status).json({ error: 'Errore tramite proxy' });
-                }
-
-                // Invia la richiesta effettiva a FastAPI tramite il proxy
-                // Poiché il proxy supporta solo 'my-url', dobbiamo inviare il payload direttamente dopo aver impostato l'URL
-                // Utilizziamo una seconda richiesta per inviare il payload
-
                 // Crea una richiesta con il payload
                 const chatPayload = {
                     user_id: userId.toString(),
                     prompt: message,
-                    assistant_id: assistantToken
+                    assistant_id: assistantToken,
+                    thread_id: threadId
                 };
 
                 // Effettua una richiesta POST direttamente a FastAPI
-                // Nota: Se il proxy non supporta l'inoltro del body, questa parte potrebbe non funzionare come previsto
                 const finalResponse = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
@@ -244,12 +221,76 @@ app.post('/api/feedback', (req, res) => {
     );
 });
 
+// METADATA STATS
+app.post('/api/metadata/stats', (req, res) => {
+    const { assistantId, startDate, endDate } = req.body;
+
+    const query = `
+        SELECT 
+            COUNT(*) AS total_conversations,
+            AVG(TIMESTAMPDIFF(SECOND, data_apertura, data_chiusura)) AS average_duration,
+            AVG(rating) AS average_rating,
+            COUNT(comment) AS total_feedbacks
+        FROM metadata
+        WHERE assistant_id = ?
+        AND data_apertura BETWEEN ? AND ?
+    `;
+
+    connection.query(query, [assistantId, startDate, endDate], (err, results) => {
+        if (err) {
+            console.error('Errore query:', err);
+            return res.status(500).json({ message: 'Errore interno del server' });
+        }
+
+        const stats = results[0];
+
+        const feedbackQuery = `
+            SELECT comment, rating, data_chiusura
+            FROM metadata
+            WHERE assistant_id = ?
+            AND data_apertura BETWEEN ? AND ?
+            AND comment IS NOT NULL
+            ORDER BY data_chiusura DESC
+        `;
+
+        connection.query(feedbackQuery, [assistantId, startDate, endDate], (err, feedbackResults) => {
+            if (err) {
+                console.error('Errore query feedback:', err);
+                return res.status(500).json({ message: 'Errore interno del server' });
+            }
+
+            res.json({
+                totalConversations: stats.total_conversations,
+                averageDuration: stats.average_duration,
+                averageRating: stats.average_rating,
+                totalFeedbacks: stats.total_feedbacks,
+                recentFeedbacks: feedbackResults
+            });
+        });
+    });
+});
+
 // Endpoint di test
 app.get('/api/test', (req, res) => {
     res.json({ 
         message: 'Il server funziona correttamente!',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development'
+    });
+});
+
+app.post('/api/assistants/admin', (req, res) => {
+    const query = `
+        SELECT *
+        FROM assistants
+    `;
+
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Errore query:', err);
+            return res.status(500).json({ message: 'Errore interno del server' });
+        }
+        res.json(results); 
     });
 });
 
@@ -262,7 +303,6 @@ app.use((err, req, res, next) => {
 // Modifica l'export per Vercel
 module.exports = app;
 
-// Se non in produzione, avvia il server
-    app.listen(PORT, () => {
-        console.log(`Server in ascolto sulla porta ${PORT}`);
-    });
+app.listen(PORT, () => {
+    console.log(`Server in ascolto sulla porta ${PORT}`);
+});
