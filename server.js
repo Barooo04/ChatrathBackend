@@ -294,6 +294,79 @@ app.post('/api/assistants/admin', (req, res) => {
     });
 });
 
+// CAMBIO PASSWORD
+app.post('/api/change-password', (req, res) => {
+    const { userId, currentPassword, newPassword } = req.body;
+
+    // Verifica che tutti i campi siano presenti
+    if (!userId || !currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Tutti i campi sono obbligatori' });
+    }
+
+    // Verifica la password attuale
+    connection.query(
+        'SELECT * FROM user WHERE id = ? AND password = ?',
+        [userId, currentPassword],
+        (err, results) => {
+            if (err) {
+                console.error('Errore query:', err);
+                return res.status(500).json({ message: 'Errore interno del server' });
+            }
+
+            if (results.length === 0) {
+                return res.status(401).json({ message: 'Password attuale errata' });
+            }
+
+            // Aggiorna la password
+            connection.query(
+                'UPDATE user SET password = ? WHERE id = ?',
+                [newPassword, userId],
+                (err, updateResults) => {
+                    if (err) {
+                        console.error('Errore durante l\'aggiornamento della password:', err);
+                        return res.status(500).json({ message: 'Errore durante l\'aggiornamento della password' });
+                    }
+
+                    res.status(200).json({ message: 'Password aggiornata con successo' });
+                }
+            );
+        }
+    );
+});
+
+// AGGIUNGI CLIENTE
+app.post('/api/add-client', (req, res) => {
+    const { name, email, password } = req.body;
+
+    // Verifica che tutti i campi siano presenti
+    if (!name || !email || !password) {
+        return res.status(400).json({ message: 'Tutti i campi sono obbligatori' });
+    }
+
+    // Verifica se l'email esiste già
+    connection.query('SELECT * FROM user WHERE email = ?', [email], (err, results) => {
+        if (err) {
+            console.error('Errore query:', err);
+            return res.status(500).json({ message: 'Errore interno del server' });
+        }
+
+        if (results.length > 0) {
+            return res.status(409).json({ message: 'Email già esistente' });
+        }
+
+        // Inserisci il nuovo cliente
+        const query = 'INSERT INTO user (name, email, password, role) VALUES (?, ?, ?, ?)';
+        connection.query(query, [name, email, password, 'client'], (err, results) => {
+            if (err) {
+                console.error('Errore durante l\'inserimento del cliente:', err);
+                return res.status(500).json({ message: 'Errore durante l\'inserimento del cliente' });
+            }
+
+            res.status(201).json({ message: 'Utente inserito con successo' });
+        });
+    });
+});
+
 // Gestione degli errori globale
 app.use((err, req, res, next) => {
     console.error(err.stack);
