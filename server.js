@@ -88,7 +88,6 @@ app.post('/api/chat', (req, res) => {
                 assistantToken === 'asst_QCWfQJx5g25MNoNhHK1xN8oo'
                 ? `https://fastapi-test-dxov.onrender.com/chat/asst_QCWfQJx5g25MNoNhHK1xN8oo`
                 : `https://fastapi-test-dxov.onrender.com/chat/${assistantToken}`;
-            console.log('API URL costruito:', apiUrl);
 
             try {
                 // Crea una richiesta con il payload
@@ -372,7 +371,29 @@ app.post('/api/add-client', (req, res) => {
                 return res.status(500).json({ message: 'Errore durante l\'inserimento del cliente' });
             }
 
-            res.status(201).json({ message: 'Utente inserito con successo' });
+            const userId = results.insertId;
+
+            // Trova tutti gli assistenti con type "default"
+            const assistantQuery = "SELECT id FROM assistants WHERE type = 'default'";
+            connection.query(assistantQuery, (err, assistantResults) => {
+                if (err) {
+                    console.error('Errore query assistenti:', err);
+                    return res.status(500).json({ message: 'Errore durante il recupero degli assistenti' });
+                }
+
+                // Inserisci una riga in canAccess per ogni assistente "default"
+                const canAccessQuery = 'INSERT INTO canAccess (user_id, assistant_id) VALUES ?';
+                const canAccessValues = assistantResults.map(assistant => [userId, assistant.id]);
+
+                connection.query(canAccessQuery, [canAccessValues], (err) => {
+                    if (err) {
+                        console.error('Errore durante l\'inserimento in canAccess:', err);
+                        return res.status(500).json({ message: 'Errore durante l\'inserimento delle autorizzazioni' });
+                    }
+
+                    res.status(201).json({ message: 'Utente inserito con successo e autorizzazioni aggiornate' });
+                });
+            });
         });
     });
 });
