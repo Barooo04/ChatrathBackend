@@ -274,6 +274,49 @@ app.post('/api/metadata/stats', (req, res) => {
     });
 });
 
+// ENDPOINT PER STATISTICHE GLOBALI
+app.get('/api/admin/stats', (req, res) => {
+    const totalClientsQuery = "SELECT COUNT(*) AS totalClients FROM user WHERE role = 'client'";
+    const totalAssistantsQuery = "SELECT COUNT(*) AS totalAssistants FROM assistants";
+    const totalConversationsQuery = "SELECT COUNT(*) AS totalConversations FROM metadata";
+    const totalFeedbacksQuery = "SELECT COUNT(*) AS totalFeedbacks FROM metadata WHERE comment IS NOT NULL";
+
+    connection.query(totalClientsQuery, (err, clientsResults) => {
+        if (err) {
+            console.error('Errore query totalClients:', err);
+            return res.status(500).json({ message: 'Errore interno del server' });
+        }
+
+        connection.query(totalAssistantsQuery, (err, assistantsResults) => {
+            if (err) {
+                console.error('Errore query totalAssistants:', err);
+                return res.status(500).json({ message: 'Errore interno del server' });
+            }
+
+            connection.query(totalConversationsQuery, (err, conversationsResults) => {
+                if (err) {
+                    console.error('Errore query totalConversations:', err);
+                    return res.status(500).json({ message: 'Errore interno del server' });
+                }
+
+                connection.query(totalFeedbacksQuery, (err, feedbacksResults) => {
+                    if (err) {
+                        console.error('Errore query totalFeedbacks:', err);
+                        return res.status(500).json({ message: 'Errore interno del server' });
+                    }
+
+                    res.json({
+                        totalClients: clientsResults[0].totalClients,
+                        totalAssistants: assistantsResults[0].totalAssistants,
+                        totalConversations: conversationsResults[0].totalConversations,
+                        totalFeedbacks: feedbacksResults[0].totalFeedbacks
+                    });
+                });
+            });
+        });
+    });
+});
+
 // Endpoint di test
 app.get('/api/test', (req, res) => {
     res.json({ 
