@@ -21,6 +21,15 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+//test
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        message: 'Il server funziona correttamente!',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
+
 // LOGIN 
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
