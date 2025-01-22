@@ -238,18 +238,29 @@ app.post('/api/feedback', (req, res) => {
 app.post('/api/metadata/stats', (req, res) => {
     const { assistantId, startDate, endDate } = req.body;
 
-    const query = `
+    let query = `
         SELECT 
             COUNT(*) AS total_conversations,
             AVG(TIMESTAMPDIFF(SECOND, data_apertura, data_chiusura)) AS average_duration,
             AVG(rating) AS average_rating,
             COUNT(comment) AS total_feedbacks
         FROM metadata
-        WHERE assistant_id = ?
-        AND data_apertura BETWEEN ? AND ?
+        WHERE 1=1
     `;
 
-    connection.query(query, [assistantId, startDate, endDate], (err, results) => {
+    const queryParams = [];
+
+    if (assistantId) {
+        query += ' AND assistant_id = ?';
+        queryParams.push(assistantId);
+    }
+
+    if (startDate && endDate) {
+        query += ' AND data_apertura BETWEEN ? AND ?';
+        queryParams.push(startDate, endDate);
+    }
+
+    connection.query(query, queryParams, (err, results) => {
         if (err) {
             console.error('Errore query:', err);
             return res.status(500).json({ message: 'Errore interno del server' });
@@ -257,16 +268,21 @@ app.post('/api/metadata/stats', (req, res) => {
 
         const stats = results[0];
 
-        const feedbackQuery = `
+        let feedbackQuery = `
             SELECT comment, rating, data_chiusura
             FROM metadata
-            WHERE assistant_id = ?
-            AND data_apertura BETWEEN ? AND ?
-            AND comment IS NOT NULL
-            ORDER BY data_chiusura DESC
+            WHERE rating IS NOT NULL
         `;
 
-        connection.query(feedbackQuery, [assistantId, startDate, endDate], (err, feedbackResults) => {
+        if (assistantId) {
+            feedbackQuery += ' AND assistant_id = ?';
+        }
+
+        if (startDate && endDate) {
+            feedbackQuery += ' AND data_apertura BETWEEN ? AND ?';
+        }
+
+        connection.query(feedbackQuery, queryParams, (err, feedbackResults) => {
             if (err) {
                 console.error('Errore query feedback:', err);
                 return res.status(500).json({ message: 'Errore interno del server' });
