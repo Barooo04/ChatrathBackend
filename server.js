@@ -236,7 +236,7 @@ app.post('/api/feedback', (req, res) => {
 
 // METADATA STATS
 app.post('/api/metadata/stats', (req, res) => {
-    const { assistantId, startDate, endDate } = req.body;
+    const { assistantId, startDate, endDate, userId } = req.body;
 
     let query = `
         SELECT 
@@ -260,6 +260,11 @@ app.post('/api/metadata/stats', (req, res) => {
         queryParams.push(startDate, endDate);
     }
 
+    if (userId) {
+        query += ' AND user_id = ?';
+        queryParams.push(userId);
+    }
+
     connection.query(query, queryParams, (err, results) => {
         if (err) {
             console.error('Errore query:', err);
@@ -280,6 +285,10 @@ app.post('/api/metadata/stats', (req, res) => {
 
         if (startDate && endDate) {
             feedbackQuery += ' AND data_apertura BETWEEN ? AND ?';
+        }
+
+        if (userId) {
+            feedbackQuery += ' AND user_id = ?';
         }
 
         connection.query(feedbackQuery, queryParams, (err, feedbackResults) => {
@@ -463,6 +472,20 @@ app.post('/api/add-client', (req, res) => {
                 });
             });
         });
+    });
+});
+
+// Endpoint per ottenere tutti gli utenti con ruolo 'client'
+app.get('/api/users', (req, res) => {
+    const query = "SELECT id FROM user WHERE role = 'client'";
+
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Errore query utenti:', err);
+            return res.status(500).json({ message: 'Errore interno del server' });
+        }
+
+        res.json(results);
     });
 });
 
