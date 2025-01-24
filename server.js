@@ -417,6 +417,34 @@ app.post('/api/change-password', (req, res) => {
     );
 });
 
+// RIMUOVI CLIENTE
+app.post('/api/remove-client', (req, res) => {
+    const { email } = req.body;
+    
+    // Verifica se l'email esiste
+    connection.query('SELECT * FROM user WHERE email = ?', [email], (err, results) => {
+        if (err) {
+            console.error('Errore durante la verifica dell\'email:', err);
+            return res.status(500).json({ message: 'Errore interno del server' });
+        }
+
+        if (results.length === 0) {
+            // Se l'email non esiste, restituisci un messaggio di errore
+            return res.status(404).json({ message: 'Email not found' });
+        }
+
+        // Procedi con la rimozione del cliente
+        connection.query('DELETE FROM user WHERE email = ?', [email], (err, results) => {
+            if (err) {
+                console.error('Errore durante la rimozione del cliente:', err);
+                return res.status(500).json({ message: 'Errore durante la rimozione del cliente' });
+            }
+
+            res.status(200).json({ message: 'Client removed successfully' });
+        });
+    });
+});
+
 // AGGIUNGI CLIENTE
 app.post('/api/add-client', (req, res) => {
     const { name, email, password } = req.body;
@@ -434,7 +462,7 @@ app.post('/api/add-client', (req, res) => {
         }
 
         if (results.length > 0) {
-            return res.status(409).json({ message: 'Email già esistente' });
+            return res.status(409).json({ message: 'Email already exists' });
         }
 
         // Hash della password
