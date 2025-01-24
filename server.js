@@ -274,13 +274,14 @@ app.post('/api/metadata/stats', (req, res) => {
         const stats = results[0];
 
         let feedbackQuery = `
-            SELECT comment, rating, data_chiusura
-            FROM metadata
+            SELECT comment, rating, data_chiusura, a.name AS assistant_name
+            FROM metadata m
+            JOIN assistants a ON m.assistant_id = a.id
             WHERE rating IS NOT NULL
         `;
 
         if (assistantId) {
-            feedbackQuery += ' AND assistant_id = ?';
+            feedbackQuery += ' AND m.assistant_id = ?';
         }
 
         if (startDate && endDate) {
@@ -296,6 +297,8 @@ app.post('/api/metadata/stats', (req, res) => {
                 console.error('Errore query feedback:', err);
                 return res.status(500).json({ message: 'Errore interno del server' });
             }
+
+            console.log('Feedback Results:', feedbackResults);
 
             res.json({
                 totalConversations: stats.total_conversations,
