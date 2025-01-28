@@ -274,10 +274,9 @@ app.post('/api/metadata/stats', (req, res) => {
         const stats = results[0];
 
         let feedbackQuery = `
-            SELECT comment, rating, data_chiusura, a.name AS assistant_name
+            SELECT *, a.name AS assistant_name
             FROM metadata m
             JOIN assistants a ON m.assistant_id = a.id
-            WHERE rating IS NOT NULL
         `;
 
         if (assistantId) {
