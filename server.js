@@ -12,7 +12,7 @@ app.use(bodyParser.json());
 // Configurazione CORS
 const corsOptions = {
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://www.threshold.coach/', 'https://chatrathassistant.vercel.app/']
+        ? ['https://www.threshold.coach', 'https://chatrathassistant.vercel.app', 'threshold.coach']
         : ['http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
