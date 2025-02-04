@@ -256,7 +256,7 @@ app.post('/api/metadata/stats', (req, res) => {
     }
 
     if (startDate && endDate) {
-        query += ' AND data_apertura BETWEEN ? AND ?';
+        query += ' AND data_apertura BETWEEN ? AND (? + INTERVAL 1 DAY)';
         queryParams.push(startDate, endDate);
     }
 
@@ -264,6 +264,9 @@ app.post('/api/metadata/stats', (req, res) => {
         query += ' AND user_id = ?';
         queryParams.push(userId);
     }
+
+    console.log(query);
+    console.log(queryParams);
 
     connection.query(query, queryParams, (err, results) => {
         if (err) {
@@ -284,12 +287,15 @@ app.post('/api/metadata/stats', (req, res) => {
         }
 
         if (startDate && endDate) {
-            feedbackQuery += ' AND data_apertura BETWEEN ? AND ?';
+            feedbackQuery += ' AND data_apertura BETWEEN ? AND (? + INTERVAL 1 DAY)';
         }
 
         if (userId) {
             feedbackQuery += ' AND user_id = ?';
         }
+
+        console.log(feedbackQuery);
+        console.log(queryParams);
 
         connection.query(feedbackQuery, queryParams, (err, feedbackResults) => {
             if (err) {
