@@ -95,8 +95,8 @@ app.post('/api/chat', (req, res) => {
             // Imposta l'URL di destinazione reale in base al token
             const apiUrl =
                 assistantToken === 'asst_QCWfQJx5g25MNoNhHK1xN8oo'
-                ? `https://fastapi-test-dxov.onrender.com/chat/asst_QCWfQJx5g25MNoNhHK1xN8oo`
-                : `https://fastapi-test-dxov.onrender.com/chat/${assistantToken}`;
+                ? `https://fastapi-test-jkm9.onrender.com/chat/asst_QCWfQJx5g25MNoNhHK1xN8oo`
+                : `https://fastapi-test-jkm9.onrender.com/chat/${assistantToken}`;
 
             try {
                 // Crea una richiesta con il payload
