@@ -6,6 +6,7 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3001;
 const bcrypt = require('bcryptjs');
+const fetch = require('node-fetch');
 
 app.use(bodyParser.json());
 
@@ -537,3 +538,19 @@ module.exports = app;
 app.listen(PORT, () => {
     console.log(`Server in ascolto sulla porta ${PORT}`);
 });
+
+// Funzione per inviare una richiesta di polling
+function startPolling() {
+    setInterval(async () => {
+        try {
+            const response = await fetch('https://chatrathbackend-kcux.onrender.com/api/test');
+            const data = await response.json();
+            console.log('Ping success:', data);
+        } catch (error) {
+            console.error('Ping error:', error);
+        }
+    }, 1800000); // 1800000 ms = 30 minuti
+}
+
+// Avvia il polling
+startPolling();
