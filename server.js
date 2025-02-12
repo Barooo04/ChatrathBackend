@@ -539,18 +539,33 @@ app.listen(PORT, () => {
     console.log(`Server in ascolto sulla porta ${PORT}`);
 });
 
-// Funzione per inviare una richiesta di polling
-function startPolling() {
-    setInterval(async () => {
-        try {
-            const response = await fetch('https://chatrathbackend-kcux.onrender.com/api/test');
-            const data = await response.json();
-            console.log('Ping success:', data);
-        } catch (error) {
-            console.error('Ping error:', error);
+// Funzione per gestire la riconnessione al database
+function handleDisconnect() {
+    connection.connect((err) => {
+        if (err) {
+            console.error('Errore durante la riconnessione al database:', err);
+            setTimeout(handleDisconnect, 2000); // Riprova a connettersi dopo 2 secondi
+        } else {
+            console.log('Riconnesso al database');
         }
-    }, 1800000); // 1800000 ms = 30 minuti
+    });
 }
 
-// Avvia il polling
-startPolling();
+// Funzione per inviare una query di polling al database
+function startDatabasePolling() {
+    setInterval(() => {
+        connection.query('SELECT * FROM assistants', (err, results) => {
+            if (err) {
+                console.error('Errore durante il polling del database:', err);
+                connection.end(); // Chiudi la connessione esistente
+                connection = require('./db'); // Crea una nuova connessione
+                handleDisconnect(); // Riprova a connettersi
+            } else {
+                console.log('Database polling success:', results);
+            }
+        });
+    }, 120000); // 120000 ms = 2 minuti
+}
+
+// Avvia la connessione e il polling del database
+startDatabasePolling();
