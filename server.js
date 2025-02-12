@@ -554,14 +554,14 @@ function handleDisconnect() {
 // Funzione per inviare una query di polling al database
 function startDatabasePolling() {
     setInterval(() => {
-        connection.query('SELECT * FROM assistants', (err, results) => {
+        connection.query('SELECT COUNT(*) AS totalAssistants FROM assistants', (err, results) => {
             if (err) {
                 console.error('Errore durante il polling del database:', err);
                 connection.end(); // Chiudi la connessione esistente
                 connection = require('./db'); // Crea una nuova connessione
                 handleDisconnect(); // Riprova a connettersi
             } else {
-                console.log('Database polling success:', results);
+                console.log('POLLING - Numero totale di assistenti:', results[0].totalAssistants);
             }
         });
     }, 120000); // 120000 ms = 2 minuti
