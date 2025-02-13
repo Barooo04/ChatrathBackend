@@ -564,7 +564,7 @@ function startDatabasePolling() {
                 console.log('POLLING - Numero totale di assistenti:', results[0].totalAssistants);
             }
         });
-    }, 120000); // 120000 ms = 2 minuti
+    }, 1800000); // 120000 ms = 2 minuti
 }
 
 // Avvia la connessione e il polling del database
