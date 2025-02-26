@@ -65,6 +65,7 @@ app.post('/api/assistants', (req, res) => {
         FROM assistants a
         JOIN canAccess ca ON a.id = ca.assistant_id
         WHERE ca.user_id = ?
+        ORDER BY a.type = 'tailored' DESC, a.id
     `;
 
     connection.query(query, [userId], (err, results) => {
@@ -564,7 +565,7 @@ function startDatabasePolling() {
                 console.log('POLLING - Numero totale di assistenti:', results[0].totalAssistants);
             }
         });
-    }, 1800000); // 120000 ms = 2 minuti
+    }, 1800000); // 1800000 ms = 30 minuti
 }
 
 // Avvia la connessione e il polling del database
