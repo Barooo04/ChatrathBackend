@@ -65,7 +65,13 @@ app.post('/api/assistants', (req, res) => {
         FROM assistants a
         JOIN canAccess ca ON a.id = ca.assistant_id
         WHERE ca.user_id = ?
-        ORDER BY a.type = 'tailored' DESC, a.id
+        ORDER BY 
+            CASE 
+                WHEN a.group = 'tailored' THEN 0
+                ELSE 1
+            END,
+            a.group,
+            a.id
     `;
 
     connection.query(query, [userId], (err, results) => {
