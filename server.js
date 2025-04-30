@@ -8,6 +8,11 @@ const PORT = process.env.PORT || 3001;
 const bcrypt = require('bcryptjs');
 const fetch = require('node-fetch');
 
+// ── Anthropic SDK ────────────────────────────────────────────────
+const { Anthropic } = require('@anthropic-ai/sdk');
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// ────────────────────────────────────────────────────────────────
+
 app.use(bodyParser.json());
 
 // Configurazione CORS
@@ -22,7 +27,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-//test
+// test
 app.get('/api/test', (req, res) => {
     res.json({ 
         message: 'Il server funziona correttamente!',
@@ -30,6 +35,46 @@ app.get('/api/test', (req, res) => {
         environment: process.env.NODE_ENV || 'development'
     });
 });
+
+// ────────────────────────────────────────────────────────────────
+// NUOVO ENDPOINT ANTHROPIC
+// Body richiesto:
+// {
+//   "messages": [{ "role": "user", "content": "ciao" }, ...],
+//   "system": "you are a test chatbot",     // facoltativo
+//   "model": "claude-3-haiku-20240307",     // facoltativo
+//   "temperature": 0.2,                     // facoltativo
+//   "max_tokens": 1024                      // facoltativo
+// }
+app.post('/api/anthropic', async (req, res) => {
+    const {
+        messages,
+        system = '',
+        model = 'claude-3-haiku-20240307',
+        temperature = 0.2,
+        max_tokens = 1024
+    } = req.body;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ message: 'messages array mancante o vuoto' });
+    }
+
+    try {
+        const response = await anthropic.messages.create({
+            model,
+            system,
+            messages,
+            temperature,
+            max_tokens
+        });
+        res.json({ assistant: response.content[0].text });
+    } catch (err) {
+        console.error('Anthropic API error:', err);
+        const status = err?.statusCode || 500;
+        res.status(status).json({ error: err.message || 'Errore Anthropic' });
+    }
+});
+// ────────────────────────────────────────────────────────────────
 
 // LOGIN 
 app.post('/api/login', (req, res) => {
@@ -41,7 +86,6 @@ app.post('/api/login', (req, res) => {
         }
         if (results.length > 0) {
             const user = results[0];
-            // Confronta la password inserita con l'hash salvato
             if (bcrypt.compareSync(password, user.password)) {
                 res.json({ 
                     message: 'Login effettuato con successo!', 
@@ -100,14 +144,12 @@ app.post('/api/chat', (req, res) => {
                 return res.status(404).json({ message: 'Assistente non trovato' });
             }
 
-            // Imposta l'URL di destinazione reale in base al token
             const apiUrl =
                 assistantToken === 'asst_QCWfQJx5g25MNoNhHK1xN8oo'
                 ? `https://fastapi-test-jkm9.onrender.com/chat/asst_QCWfQJx5g25MNoNhHK1xN8oo`
                 : `https://fastapi-test-jkm9.onrender.com/chat/${assistantToken}`;
 
             try {
-                // Crea una richiesta con il payload
                 const chatPayload = {
                     user_id: userId.toString(),
                     prompt: message,
@@ -115,7 +157,6 @@ app.post('/api/chat', (req, res) => {
                     thread_id: threadId
                 };
 
-                // Effettua una richiesta POST direttamente a FastAPI
                 const finalResponse = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
@@ -145,7 +186,7 @@ app.post('/api/chat', (req, res) => {
 app.get('/api/assistant/:token', (req, res) => {
     const { token } = req.params;
     
-    const query = 'SELECT id, name FROM assistants WHERE token = ?';
+    const query = 'SELECT id, name, first_message, prompt FROM assistants WHERE token = ?';
     
     connection.query(query, [token], (err, results) => {
         if (err) {
@@ -159,7 +200,9 @@ app.get('/api/assistant/:token', (req, res) => {
         
         res.json({ 
             id: results[0].id,
-            name: results[0].name
+            name: results[0].name,
+            first_message: results[0].first_message,
+            prompt: results[0].prompt
         });
     });
 });
@@ -194,7 +237,6 @@ app.post('/api/metadata', (req, res) => {
 app.post('/api/feedback', (req, res) => {
     const { assistantId, userId, rating, comment, threadId } = req.body;
 
-    // Validazione
     if (!assistantId || !userId || !rating || !threadId) {
         return res.status(400).json({ 
             success: false, 
@@ -367,7 +409,7 @@ app.get('/api/admin/stats', (req, res) => {
     });
 });
 
-// Endpoint di test
+// Endpoint di test (duplicato voluto, come nel codice originale)
 app.get('/api/test', (req, res) => {
     res.json({ 
         message: 'Il server funziona correttamente!',
@@ -395,12 +437,10 @@ app.post('/api/assistants/admin', (req, res) => {
 app.post('/api/change-password', (req, res) => {
     const { userId, currentPassword, newPassword } = req.body;
 
-    // Verifica che tutti i campi siano presenti
     if (!userId || !currentPassword || !newPassword) {
         return res.status(400).json({ message: 'Tutti i campi sono obbligatori' });
     }
 
-    // Verifica la password attuale
     connection.query(
         'SELECT * FROM user WHERE id = ?', [userId],
         (err, results) => {
@@ -413,10 +453,8 @@ app.post('/api/change-password', (req, res) => {
                 return res.status(401).json({ message: 'Password attuale errata' });
             }
 
-            // Hash della nuova password
             const hashedPassword = bcrypt.hashSync(newPassword, 10);
 
-            // Aggiorna la password
             connection.query(
                 'UPDATE user SET password = ? WHERE id = ?',
                 [hashedPassword, userId],
@@ -437,7 +475,6 @@ app.post('/api/change-password', (req, res) => {
 app.post('/api/remove-client', (req, res) => {
     const { email } = req.body;
     
-    // Verifica se l'email esiste
     connection.query('SELECT * FROM user WHERE email = ?', [email], (err, results) => {
         if (err) {
             console.error('Errore durante la verifica dell\'email:', err);
@@ -445,11 +482,9 @@ app.post('/api/remove-client', (req, res) => {
         }
 
         if (results.length === 0) {
-            // Se l'email non esiste, restituisci un messaggio di errore
             return res.status(404).json({ message: 'Email not found' });
         }
 
-        // Procedi con la rimozione del cliente
         connection.query('DELETE FROM user WHERE email = ?', [email], (err, results) => {
             if (err) {
                 console.error('Errore durante la rimozione del cliente:', err);
@@ -465,12 +500,10 @@ app.post('/api/remove-client', (req, res) => {
 app.post('/api/add-client', (req, res) => {
     const { name, email, password } = req.body;
 
-    // Verifica che tutti i campi siano presenti
     if (!name || !email || !password) {
         return res.status(400).json({ message: 'Tutti i campi sono obbligatori' });
     }
 
-    // Verifica se l'email esiste già
     connection.query('SELECT * FROM user WHERE email = ?', [email], (err, results) => {
         if (err) {
             console.error('Errore query:', err);
@@ -481,10 +514,8 @@ app.post('/api/add-client', (req, res) => {
             return res.status(409).json({ message: 'Email already exists' });
         }
 
-        // Hash della password
         const hashedPassword = bcrypt.hashSync(password, 10);
 
-        // Inserisci il nuovo cliente
         const query = 'INSERT INTO user (name, email, password, role) VALUES (?, ?, ?, ?)';
         connection.query(query, [name, email, hashedPassword, 'client'], (err, results) => {
             if (err) {
@@ -494,7 +525,6 @@ app.post('/api/add-client', (req, res) => {
 
             const userId = results.insertId;
 
-            // Trova tutti gli assistenti con type "default"
             const assistantQuery = "SELECT id FROM assistants WHERE type = 'default'";
             connection.query(assistantQuery, (err, assistantResults) => {
                 if (err) {
@@ -502,7 +532,6 @@ app.post('/api/add-client', (req, res) => {
                     return res.status(500).json({ message: 'Errore durante il recupero degli assistenti' });
                 }
 
-                // Inserisci una riga in canAccess per ogni assistente "default"
                 const canAccessQuery = 'INSERT INTO canAccess (user_id, assistant_id) VALUES ?';
                 const canAccessValues = assistantResults.map(assistant => [userId, assistant.id]);
 
@@ -551,7 +580,7 @@ function handleDisconnect() {
     connection.connect((err) => {
         if (err) {
             console.error('Errore durante la riconnessione al database:', err);
-            setTimeout(handleDisconnect, 2000); // Riprova a connettersi dopo 2 secondi
+            setTimeout(handleDisconnect, 2000); // Riprova dopo 2 secondi
         } else {
             console.log('Riconnesso al database');
         }
@@ -564,14 +593,14 @@ function startDatabasePolling() {
         connection.query('SELECT COUNT(*) AS totalAssistants FROM assistants', (err, results) => {
             if (err) {
                 console.error('Errore durante il polling del database:', err);
-                connection.end(); // Chiudi la connessione esistente
-                connection = require('./db'); // Crea una nuova connessione
-                handleDisconnect(); // Riprova a connettersi
+                connection.end();
+                connection = require('./db');
+                handleDisconnect();
             } else {
                 console.log('POLLING - Numero totale di assistenti:', results[0].totalAssistants);
             }
         });
-    }, 1800000); // 1800000 ms = 30 minuti
+    }, 1800000); // 30 minuti
 }
 
 // Avvia la connessione e il polling del database
