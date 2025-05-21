@@ -235,8 +235,50 @@ app.post('/api/metadata', (req, res) => {
 
 // FEEDBACK
 app.post('/api/feedback', (req, res) => {
-    const { assistantId, userId, rating, comment, threadId } = req.body;
+    const { assistantId, userId, rating, comment, threadId, isAnthropic } = req.body;
 
+    // Per Anthropic, verifichiamo se c'è un feedback da salvare
+    if (isAnthropic) {
+        // Se non c'è un feedback (rating default e commento vuoto), rispondiamo con successo
+        if (rating === 3 && (!comment || comment.trim() === '')) {
+            return res.status(200).json({
+                success: true,
+                message: 'Nessun feedback da salvare'
+            });
+        }
+
+        // Se c'è un feedback, lo salviamo in una nuova riga
+        const now = new Date();
+        const dataChiusura = now.toISOString().slice(0, 19).replace('T', ' ');
+
+        const query = `
+            INSERT INTO metadata 
+            (user_id, assistant_id, data_apertura, data_chiusura, nome_chatpage, thread_id, rating, comment) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        connection.query(
+            query,
+            [userId, assistantId, dataChiusura, dataChiusura, 'Anthropic Chat', null, rating, comment || ''],
+            (err, results) => {
+                if (err) {
+                    console.error('Errore durante il salvataggio del feedback Anthropic:', err);
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Errore durante il salvataggio del feedback'
+                    });
+                }
+
+                res.status(200).json({
+                    success: true,
+                    message: 'Feedback salvato con successo'
+                });
+            }
+        );
+        return;
+    }
+
+    // Per il servizio Default, manteniamo la logica esistente
     if (!assistantId || !userId || !rating || !threadId) {
         return res.status(400).json({ 
             success: false, 
@@ -559,6 +601,66 @@ app.get('/api/users', (req, res) => {
         }
 
         res.json(results);
+    });
+});
+
+// CHECK METADATA
+app.post('/api/metadata/check', (req, res) => {
+    const { userId, assistantId } = req.body;
+
+    const query = `
+        SELECT thread_id 
+        FROM metadata 
+        WHERE user_id = ? 
+        AND assistant_id = ? 
+        AND data_chiusura IS NULL 
+        AND thread_id IS NOT NULL
+        ORDER BY data_apertura DESC 
+        LIMIT 1
+    `;
+
+    connection.query(query, [userId, assistantId], (err, results) => {
+        if (err) {
+            console.error('Errore query:', err);
+            return res.status(500).json({ message: 'Errore interno del server' });
+        }
+
+        if (results.length > 0) {
+            res.json({ 
+                exists: true, 
+                threadId: results[0].thread_id 
+            });
+        } else {
+            res.json({ 
+                exists: false 
+            });
+        }
+    });
+});
+
+// CREATE METADATA
+app.post('/api/metadata', (req, res) => {
+    const { userId, assistantId, assistantName, isAnthropic } = req.body;
+    const now = new Date();
+    const dataApertura = now.toISOString().slice(0, 19).replace('T', ' ');
+    const threadId = isAnthropic ? null : uuidv4();
+
+    const query = `
+        INSERT INTO metadata 
+        (user_id, assistant_id, data_apertura, nome_chatpage, thread_id) 
+        VALUES (?, ?, ?, ?, ?)
+    `;
+
+    connection.query(query, [userId, assistantId, dataApertura, assistantName, threadId], (err, results) => {
+        if (err) {
+            console.error('Errore query:', err);
+            return res.status(500).json({ message: 'Errore interno del server' });
+        }
+
+        res.json({ 
+            threadId: threadId,
+            message: 'Metadata creati con successo'
+        });
     });
 });
 
