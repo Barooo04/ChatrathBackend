@@ -209,10 +209,10 @@ app.get('/api/assistant/:token', (req, res) => {
 
 // METADATA
 app.post('/api/metadata', (req, res) => {
-    const { userId, assistantId, assistantName } = req.body;
+    const { userId, assistantId, assistantName, isAnthropic } = req.body;
     const now = new Date();
     const dataApertura = now.toISOString().slice(0, 19).replace('T', ' ');
-    const threadId = uuidv4();
+    const threadId = isAnthropic ? null : uuidv4();
 
     const query = `
         INSERT INTO metadata 
@@ -222,13 +222,13 @@ app.post('/api/metadata', (req, res) => {
 
     connection.query(query, [userId, assistantId, dataApertura, assistantName, threadId], (err, results) => {
         if (err) {
-            console.error('Errore inserimento metadata:', err);
+            console.error('Errore query:', err);
             return res.status(500).json({ message: 'Errore interno del server' });
         }
+
         res.json({ 
-            message: 'Metadata inseriti con successo',
-            metadataId: results.insertId,
-            threadId: threadId
+            threadId: threadId,
+            message: 'Metadata creati con successo'
         });
     });
 });
@@ -635,32 +635,6 @@ app.post('/api/metadata/check', (req, res) => {
                 exists: false 
             });
         }
-    });
-});
-
-// CREATE METADATA
-app.post('/api/metadata', (req, res) => {
-    const { userId, assistantId, assistantName, isAnthropic } = req.body;
-    const now = new Date();
-    const dataApertura = now.toISOString().slice(0, 19).replace('T', ' ');
-    const threadId = isAnthropic ? null : uuidv4();
-
-    const query = `
-        INSERT INTO metadata 
-        (user_id, assistant_id, data_apertura, nome_chatpage, thread_id) 
-        VALUES (?, ?, ?, ?, ?)
-    `;
-
-    connection.query(query, [userId, assistantId, dataApertura, assistantName, threadId], (err, results) => {
-        if (err) {
-            console.error('Errore query:', err);
-            return res.status(500).json({ message: 'Errore interno del server' });
-        }
-
-        res.json({ 
-            threadId: threadId,
-            message: 'Metadata creati con successo'
-        });
     });
 });
 
